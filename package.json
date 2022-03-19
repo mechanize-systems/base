@@ -1,0 +1,23 @@
+{
+  "name": "@mechanize/base",
+  "version": "0.0.1",
+  "description": "Standard library for your React / TypeScript projects",
+  "author": "Andrey Popp <me@andreypopp.com>",
+  "license": "MIT",
+  "main": "index",
+  "peerDependencies": {
+    "react": "*",
+    "react-dom": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^17.0.21",
+    "@types/react": "^17.0.41",
+    "@types/react-dom": "^17.0.14",
+    "eslint": "^8.11.0",
+    "prettier": "^2.6.0",
+    "react": "*",
+    "react-dom": "*",
+    "typescript": "^4.6.2",
+    "typescript-language-server": "^0.9.7"
+  }
+}
