@@ -18,7 +18,7 @@ type Finalize = () => void;
  */
 export function useDebouncedCallback<Args extends unknown[]>(
   ms: number,
-  f: (...args: Args) => void | Promise<void>,
+  f: (...args: Args) => void,
   deps: unknown[] = [],
 ): readonly [
   callback: (...args: Args) => void | Promise<void>,
@@ -128,7 +128,11 @@ export function usePersistentState<V>(
   // Persist committed state to localStorage
   React.useEffect(() => {
     localStorage.setItem(id, codec.encode(v));
-  }, [v, id]);
+  }, [v, id, codec]);
 
   return [v, setv] as const;
+}
+
+export function useMemoOnce<T>(f: () => T): T {
+  return React.useMemo(f, []); // eslint-disable-line
 }
