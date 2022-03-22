@@ -136,3 +136,13 @@ export function usePersistentState<V>(
 export function useMemoOnce<T>(f: () => T): T {
   return React.useMemo(f, []); // eslint-disable-line
 }
+
+export function stopPropagation(
+  ev:
+    | React.MouseEvent
+    | React.KeyboardEvent
+    | React.FormEvent
+    | React.TouchEvent,
+) {
+  ev.stopPropagation();
+}

@@ -14,6 +14,15 @@ export function defineWorker<P extends any[], R>(
   });
 }
 
+export function defineWorkerExn<P extends any[], R>(
+  process: (...args: P) => R,
+) {
+  addEventListener("message", async (event) => {
+    let [id, params] = event.data as [number, P];
+    postMessage([id, process(...params)]);
+  });
+}
+
 export class WorkerManager<P extends any[], R, E = string> {
   private _id: number;
   private _worker: Promise<Worker> | null;
