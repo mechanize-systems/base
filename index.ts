@@ -1,3 +1,4 @@
+export * as Array from "./Array";
 export * as Promise from "./Promise";
 export * as React from "./ReactExt";
 export * as Worker from "./Worker";
