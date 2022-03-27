@@ -146,3 +146,24 @@ export function stopPropagation(
 ) {
   ev.stopPropagation();
 }
+
+export function useMatchMedia(
+  expr: string,
+  f: (matches: boolean) => any,
+  deps: unknown[],
+): boolean {
+  let m = React.useMemo(() => window.matchMedia(expr), deps); // eslint-disable-line
+  React.useLayoutEffect(() => {
+    let listener = (ev: MediaQueryListEvent) => f(ev.matches);
+    m.addEventListener("change", listener);
+    return () => m.removeEventListener("change", listener);
+  }, deps); // eslint-disable-line
+  return m.matches;
+}
+
+export function usePrefersDarkMode(
+  f: (isDarkMode: boolean) => any,
+  deps: unknown[],
+) {
+  return useMatchMedia("(prefers-color-scheme: dark)", f, deps);
+}
