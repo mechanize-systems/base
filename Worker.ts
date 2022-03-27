@@ -1,11 +1,14 @@
 import { Deferred, deferred } from "./Promise";
 import { Result, error, ok } from "./Result";
 
-export function defineWorker<P extends any[], R>(
-  process: (...args: P) => R | Promise<R>,
-) {
+type AnyMethods = { [name: string]: (...args: any[]) => Promise<any> | any };
+
+export function defineWorker<Methods extends AnyMethods>(methods: Methods) {
   addEventListener("message", async (event) => {
-    let [id, params] = event.data as [number, P];
+    let [id, name, params] = event.data as [number, string, any[]];
+    let process = methods[name];
+    if (process == null)
+      return postMessage([id, error(`no such method '${name}'`)]);
     try {
       postMessage([id, ok(await process(...params))]);
     } catch (err) {
@@ -23,10 +26,10 @@ export function defineWorkerExn<P extends any[], R>(
   });
 }
 
-export class WorkerManager<P extends any[], R, E = string> {
+export class WorkerManager<Methods extends AnyMethods, E = string> {
   private _id: number;
   private _worker: Promise<Worker> | null;
-  private _waiting: Map<number, Deferred<Result<R, E>>>;
+  private _waiting: Map<number, Deferred<Result<any, E>>>;
   private _create: () => Worker | Promise<Worker>;
 
   constructor(create: () => Worker | Promise<Worker>) {
@@ -37,7 +40,7 @@ export class WorkerManager<P extends any[], R, E = string> {
   }
 
   onmessage = (evt: MessageEvent) => {
-    let [id, result] = evt.data as [number, Result<R, E>];
+    let [id, result] = evt.data as [number, Result<any, E>];
     let deferred = this._waiting.get(id);
     if (deferred == null)
       throw new Error(`WorkerManager: orphaned result ${id}`);
@@ -55,11 +58,14 @@ export class WorkerManager<P extends any[], R, E = string> {
     return this._worker;
   }
 
-  async submit(...params: P) {
+  async submit<N extends keyof Methods>(
+    name: N,
+    params: Parameters<Methods[N]>,
+  ): Promise<Result<Awaited<ReturnType<Methods[N]>>, E>> {
     let id = (this._id += 1);
-    let def = deferred<Result<R, E>>();
+    let def = deferred<Result<any, E>>();
     this._waiting.set(id, def);
-    (await this.worker).postMessage([id, params]);
+    (await this.worker).postMessage([id, name, params]);
     return def.promise;
   }
 
