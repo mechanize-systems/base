@@ -13,3 +13,9 @@ export function max(it: number[]): number {
   for (let v of it) acc = Math.max(acc, v);
   return acc;
 }
+
+export function min(it: number[]): number {
+  let acc = Infinity;
+  for (let v of it) acc = Math.min(acc, v);
+  return acc;
+}
