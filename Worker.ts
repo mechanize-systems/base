@@ -17,15 +17,6 @@ export function defineWorker<Methods extends AnyMethods>(methods: Methods) {
   });
 }
 
-export function defineWorkerExn<P extends any[], R>(
-  process: (...args: P) => R,
-) {
-  addEventListener("message", async (event) => {
-    let [id, params] = event.data as [number, P];
-    postMessage([id, process(...params)]);
-  });
-}
-
 export class WorkerManager<Methods extends AnyMethods, E = string> {
   private _id: number;
   private _worker: Promise<Worker> | null;
