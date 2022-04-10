@@ -125,6 +125,16 @@ export function usePersistentState<V>(
     else return init();
   });
 
+  React.useEffect(() => {
+    window.addEventListener("storage", (ev) => {
+      if (ev.key !== id) return;
+      if (ev.newValue == null) return setv(init());
+      let v = codec.decode(ev.newValue);
+      if (v !== NO_VALUE) return setv(v);
+      else return setv(init());
+    });
+  }, [id, setv]); // eslint-disable-line
+
   // Persist committed state to localStorage
   React.useEffect(() => {
     localStorage.setItem(id, codec.encode(v));
