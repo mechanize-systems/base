@@ -19,11 +19,11 @@ type Finalize = () => void;
 export function useDebouncedCallback<Args extends unknown[]>(
   ms: number,
   f: (...args: Args) => void,
-  deps: unknown[] = [],
+  deps: unknown[] = []
 ): readonly [
   callback: (...args: Args) => void | Promise<void>,
   flush: Finalize,
-  cancel: Finalize,
+  cancel: Finalize
 ] {
   // Store current ms value in ref.
   //
@@ -115,24 +115,24 @@ export let jsonCodec: Codec<any> = {
 export function usePersistentState<V>(
   id: string,
   init: () => V,
-  codec: Codec<V> = jsonCodec,
+  codec: Codec<V> = jsonCodec
 ) {
   let [v, setv] = React.useState<V>(() => {
     let s: string | null = localStorage.getItem(id);
     if (s == null) return init();
     let v = codec.decode(s);
-    if (v !== NO_VALUE) return v;
-    else return init();
+    return v === NO_VALUE ? init() : v
   });
 
   React.useEffect(() => {
-    window.addEventListener("storage", (ev) => {
+    let onChange = (ev: StorageEvent) => {
       if (ev.key !== id) return;
       if (ev.newValue == null) return setv(init());
       let v = codec.decode(ev.newValue);
-      if (v !== NO_VALUE) return setv(v);
-      else return setv(init());
-    });
+      setv(v === NO_VALUE ? init() : v);
+    };
+    window.addEventListener("storage", onChange);
+    return () => window.removeEventListener("storage", onChange);
   }, [id, setv]); // eslint-disable-line
 
   // Persist committed state to localStorage
@@ -152,7 +152,7 @@ export function stopPropagation(
     | React.MouseEvent
     | React.KeyboardEvent
     | React.FormEvent
-    | React.TouchEvent,
+    | React.TouchEvent
 ) {
   ev.stopPropagation();
 }
@@ -160,7 +160,7 @@ export function stopPropagation(
 export function useMatchMedia(
   expr: string,
   f: (matches: boolean) => any,
-  deps: unknown[],
+  deps: unknown[]
 ): boolean {
   let m = React.useMemo(() => window.matchMedia(expr), deps); // eslint-disable-line
   React.useLayoutEffect(() => {
@@ -173,7 +173,7 @@ export function useMatchMedia(
 
 export function usePrefersDarkMode(
   f: (isDarkMode: boolean) => any,
-  deps: unknown[],
+  deps: unknown[]
 ) {
   return useMatchMedia("(prefers-color-scheme: dark)", f, deps);
 }
