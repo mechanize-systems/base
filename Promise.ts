@@ -61,7 +61,7 @@ class Deferred<T> implements Suspendable<T> {
     onrejected?:
       | ((reason: any) => TResult2 | PromiseLike<TResult2>)
       | undefined
-      | null,
+      | null
   ): Deferred<TResult1 | TResult2> {
     return Deferred.ofPromise(this.promise.then(onfulfilled, onrejected));
   }
@@ -82,7 +82,7 @@ class Deferred<T> implements Suspendable<T> {
 export type { Deferred };
 
 export function isDeferred<T>(
-  value: Deferred<T> | unknown,
+  value: Deferred<T> | unknown
 ): value is Deferred<T> {
   return value instanceof Deferred;
 }
@@ -92,7 +92,7 @@ export function deferred<T>(): Deferred<T> {
 }
 
 export function suspendable<T>(
-  f: () => T | PromiseLike<T>,
+  f: () => T | PromiseLike<T>
 ): () => Suspendable<T> {
   let deferred: Deferred<T> | null = null;
   return () => {
@@ -105,4 +105,40 @@ export function suspendable<T>(
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Execute async tasks with limited concurrency. */
+export type Pool = {
+  /** Pool size. */
+  size: number;
+
+  /** Execute `f` once there's a free slot in pool. */
+  run<T>(f: () => Promise<T>): Promise<T>;
+};
+
+/** Create a pool with `size` of simultaneously executing tasks. */
+export function pool(size: number): Pool {
+  if (size <= 0) throw new Error("Pool: size must be > 0");
+  let slot: Deferred<void> = deferred();
+  return {
+    size,
+    async run<T>(f: () => Promise<T>): Promise<T> {
+      while (size === 0)
+        // No free slot, must wait for a free one. As there could me multiple
+        // tasks racing for the slot we wait in a loop.
+        await slot;
+      size = size - 1;
+      if (size === 0)
+        // Afterwards no free slot left, refresh deferred.
+        slot = deferred();
+      try {
+        return await f();
+      } finally {
+        if (size === 0)
+          // There's a free slot, resolve deferred.
+          slot.resolve();
+        size = size + 1;
+      }
+    },
+  };
 }
