@@ -14,3 +14,7 @@ export function assert(value: unknown, msg: string = "oops!"): asserts value {
 export function never(_value: never, msg: string = "oops!"): never {
   throw new Error(`Impossible: ${msg}`);
 }
+
+export type NarrowTuple<A> =
+  | (A extends [] ? [] : never)
+  | { [K in keyof A]: A[K] };
