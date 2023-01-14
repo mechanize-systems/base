@@ -226,7 +226,7 @@ function parse1(
   }
 
   while (tokens.length > 0) {
-    let tok = tokens[0];
+    let tok = tokens[0]!;
     switch (tok.kind) {
       case "option": {
         tokens.shift();
@@ -283,11 +283,11 @@ function parse1(
   }
 
   if (args.length > 0)
-    throw new CommandLineError(cmds, `missing ${args[0].docv} argument`);
+    throw new CommandLineError(cmds, `missing ${args[0]!.docv} argument`);
 
   // Add missing options
   for (let name in opts) {
-    let { opt, key } = opts[name];
+    let { opt, key } = opts[name]!;
     if (optsValues[key] == null) {
       if (opt.type === "OptionRepeating") {
         if (opt.opt.env != null) {
@@ -331,7 +331,7 @@ export async function run<C extends AnyCmd>(
     } catch (err) {
       if (err instanceof CommandLineError) {
         let name = err.cmds.map((cmd) => cmd.name).join(" ");
-        console.log(printUsage(err.cmds[err.cmds.length - 1], name));
+        console.log(printUsage(err.cmds[err.cmds.length - 1]!, name));
         console.log(`error: ${err.message}`);
         process.exit(1);
       } else {

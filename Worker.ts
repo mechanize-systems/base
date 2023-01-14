@@ -51,7 +51,7 @@ export class WorkerManager<Methods extends AnyMethods, E = string> {
 
   async submit<N extends keyof Methods>(
     name: N,
-    params: Parameters<Methods[N]>,
+    params: Parameters<Methods[N]>
   ): Promise<Result<Awaited<ReturnType<Methods[N]>>, E>> {
     let id = (this._id += 1);
     let def = deferred<Result<any, E>>();
@@ -85,7 +85,7 @@ export function supportsWorkerModule(): boolean {
     // which is perfect since
     // we don't need the worker to actually start,
     // checking for the type of the script is done before trying to load it.
-    const worker = new Worker("blob://", tester);
+    new Worker("blob://", tester);
   } finally {
     return supports;
   }

@@ -1,6 +1,6 @@
 export * as Array from "./Array";
 export * as Promise from "./Promise";
-export * as React from "./ReactExt";
+export * as Stream from "./Stream";
 export * as Worker from "./Worker";
 export * as Date from "./Date";
 export { EventEmitter } from "./EventEmitter";
