@@ -18,12 +18,10 @@ If you are still brave to do so the intended way is:
   $ git submodule add https://github.com/mechanize-systems/base.git base
   ```
 
-- Add a reference to the project's `tsconfig.json`:
+- Add this `paths` declaration to project's `tsconfig.json`:
 
   ```
-  "references": [
-    {
-      "path": "./base/tsconfig.json"
-    }
-  ]
+  "paths": { "@mechanize-systems/base/*": ["./base/*"] }
   ```
+
+- Now you can import `@mechanize-systems/base` and submodules in your project.
