@@ -145,7 +145,7 @@ let defaultCmdAction: CmdAction<AnyCmd> = function (opts, ...args) {
 let defaultHelpOption = optionFlag({
   name: "help",
   shortName: "h",
-  doc: "Show this message and exit",
+  doc: "show this message and exit",
 });
 
 type CmdArgsResult<C> = C extends Cmd<[], null, infer _O, infer _C>
@@ -459,20 +459,24 @@ function ppUsage(cmd: AnyCmd, name?: string): pp.IDoc {
 }
 
 function ppOptName(opt: Opt<any>) {
-  return opt.shortName != null
+  let name = opt.shortName != null
     ? `--${opt.name}, -${opt.shortName}`
     : `--${opt.name}`;
+  if (opt.action !== 'boolean')
+    name = `${name} ${opt.docv ?? 'VALUE'}`
+  return name;
 }
 
 function ppOptDoc(opt: Opt<any>): pp.IDoc {
-  let doc: pp.IDocArray = [ppText(opt.doc ?? "")];
-  if (opt.env != null)
-    doc.push(pp.line, ppText(`(environment variable: \$${opt.env})`));
-  if (opt.default != null)
-    doc.push(
-      pp.line,
-      ppText(`(default value: ${JSON.stringify(opt.default)})`)
-    );
+  let doc: pp.IDocArray = opt.doc != null ? [ppText(opt.doc)] : [];
+  if (opt.default != null) {
+    if (doc.length > 0) doc.push(pp.line);
+    doc.push(ppText(`(default: ${JSON.stringify(opt.default)})`));
+  }
+  if (opt.env != null) {
+    if (doc.length > 0) doc.push(pp.line);
+    doc.push(ppText(`(env var: \$${opt.env})`));
+  }
   return doc;
 }
 
