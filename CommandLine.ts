@@ -80,7 +80,7 @@ export function argRepeating<A>(arg: Arg<A>): RepeatingArg<A> {
   return { type: "RepeatingArg", arg };
 }
 
-type OptionalArg<A> = {
+type OptionalArg<_A> = {
   type: "OptionalArg";
   arg: AnyArg;
   default?: string | undefined;
