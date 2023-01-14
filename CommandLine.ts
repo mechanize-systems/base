@@ -6,6 +6,8 @@ import * as util from "util";
 import * as pp from "prettier-printer";
 import * as Lang from "./Lang.js";
 
+type MaybeString<O> = O extends string ? string : undefined;
+
 export type OptSpec = {
   readonly name: string;
   readonly shortName?: string;
@@ -20,21 +22,17 @@ export type Opt<T> = OptSpec & {
   readonly action: "string" | "boolean" | ((value: string | undefined) => T);
 };
 
-type OptDefault<O extends OptSpec> = O["default"] extends string
-  ? string
-  : undefined;
-
 /** Define an option. */
 export function option<S extends OptSpec>(
   spec: S
-): Opt<string | OptDefault<S>> {
+): Opt<string | MaybeString<S["default"]>> {
   return { ...spec, type: "Opt", action: "string" };
 }
 
 /** Define an option which computes to a value using `action`. */
 export function optionAnd<S extends OptSpec, T>(
   spec: S,
-  action: (value: string | OptDefault<S>) => T
+  action: (value: string | MaybeString<S["default"]>) => T
 ): Opt<T> {
   return { ...spec, type: "Opt", action: action as Opt<T>["action"] };
 }
@@ -76,21 +74,28 @@ export function argAnd<T>(spec: ArgSpec, action: (value: string) => T): Arg<T> {
   return { ...spec, type: "Arg", action };
 }
 
-type RepeatingArg<A extends Arg<any>> = { type: "RepeatingArg"; arg: A };
+type RepeatingArg<A> = { type: "RepeatingArg"; arg: Arg<A> };
 
-export function argRepeating<A extends Arg<any>>(arg: A): RepeatingArg<A> {
+export function argRepeating<A>(arg: Arg<A>): RepeatingArg<A> {
   return { type: "RepeatingArg", arg };
 }
 
-export function argOptional<A extends Arg<any>>(arg: A): OptionalArg<A> {
-  return { type: "OptionalArg", arg };
-}
+type OptionalArg<A> = {
+  type: "OptionalArg";
+  arg: AnyArg;
+  default?: string | undefined;
+};
 
-type OptionalArg<A extends Arg<any>> = { type: "OptionalArg"; arg: A };
+export function argOptional<A, D extends string | undefined>(
+  arg: Arg<A>,
+  defaultValue?: D
+): OptionalArg<D extends string ? A : A | undefined> {
+  return { type: "OptionalArg", arg, default: defaultValue };
+}
 
 type AnyArg = Arg<any>;
 
-type AnyArgRest = RepeatingArg<Arg<any>> | OptionalArg<Arg<any>>;
+type AnyArgRest = RepeatingArg<any> | OptionalArg<any>;
 
 export type Cmd<
   A extends Arg<any>[],
@@ -154,9 +159,9 @@ type CmdArgsResult<C> = C extends Cmd<[], null, infer _O, infer _C>
   : never;
 
 type WithArgRestResult<A extends any[], RA> = RA extends RepeatingArg<infer RA0>
-  ? [...A, ...ArgResult<RA0>[]]
+  ? [...A, ...RA0[]]
   : RA extends OptionalArg<infer RA0>
-  ? [...A, ArgResult<RA0> | void]
+  ? [...A, RA0]
   : A;
 
 type ArgResult<A> = A extends Arg<infer T> ? T : never;
@@ -332,6 +337,12 @@ function parse1(
 
   if (args.length > 0)
     throw new CommandLineError(cmds, `missing ${args[0]!.docv} argument`);
+  if (
+    argsRest?.type === "OptionalArg" &&
+    (cmd.args?.length ?? 0) === argsValues.length &&
+    argsRest.default != null
+  )
+    addArgValue(argsRest.arg, argsRest.default);
 
   // Add missing options
   for (let name in opts) {
