@@ -213,7 +213,7 @@ class UserError extends Error {
 }
 
 /** Print usage line, error message, then exit the program. */
-export function error(msg: string) {
+export function error(msg: string): never {
   throw new UserError(msg);
 }
 
