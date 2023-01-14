@@ -55,24 +55,39 @@ export type ArgSpec = {
 };
 
 export type Arg<T> = ArgSpec & {
+  type: "Arg";
   readonly action: "string" | ((value: string) => T);
 };
 
-type AnyArg = Arg<any>;
-
 /** Define an argument. */
 export function arg(spec: ArgSpec): Arg<string> {
-  return { ...spec, action: "string" };
+  return { ...spec, type: "Arg", action: "string" };
 }
 
 /** Define an argument which computes to a value using `action`. */
 export function argAnd<T>(spec: ArgSpec, action: (value: string) => T): Arg<T> {
-  return { ...spec, action };
+  return { ...spec, type: "Arg", action };
 }
 
+type RepeatingArg<A extends Arg<any>> = { type: "RepeatingArg"; arg: A };
+
+export function argRepeating<A extends Arg<any>>(arg: A): RepeatingArg<A> {
+  return { type: "RepeatingArg", arg };
+}
+
+export function argOptional<A extends Arg<any>>(arg: A): OptionalArg<A> {
+  return { type: "OptionalArg", arg };
+}
+
+type OptionalArg<A extends Arg<any>> = { type: "OptionalArg"; arg: A };
+
+type AnyArg = Arg<any>;
+
+type AnyArgRest = RepeatingArg<Arg<any>> | OptionalArg<Arg<any>>;
+
 export type Cmd<
-  A extends readonly Arg<any>[],
-  RA extends Arg<any> | null,
+  A extends Arg<any>[],
+  RA extends AnyArgRest | null,
   O extends { [name: string]: AnyOpt },
   C extends { [name: string]: AnyCmd }
 > = {
@@ -85,7 +100,7 @@ export type Cmd<
 };
 
 // Only for use in type constraints
-type AnyCmd = Cmd<any, any, any, any>;
+type AnyCmd = Cmd<AnyArg[], AnyArgRest, any, any>;
 
 export type CmdAction<C extends AnyCmd> = (
   this: { name: string; cmd: C },
@@ -96,7 +111,7 @@ export type CmdAction<C extends AnyCmd> = (
 /** Define a command. */
 export function cmd<
   A extends AnyArg[],
-  RA extends AnyArg,
+  RA extends AnyArgRest,
   C extends Cmd<Lang.NarrowTuple<A>, RA, any, any>
 >(spec: C, action?: CmdAction<C>): C {
   if (action == null) action = defaultCmdAction;
@@ -125,9 +140,17 @@ type CmdArgsResult<C> = C extends Cmd<[], null, infer _O, infer _C>
   ? []
   : C extends Cmd<infer A, null, infer _O, infer _C>
   ? [...{ [K in keyof A]: ArgResult<A[K]> }]
+  : C extends Cmd<[], infer RA, infer _O, infer _C>
+  ? WithArgRestResult<[], RA>
   : C extends Cmd<infer A, infer RA, infer _O, infer _C>
-  ? [...{ [K in keyof A]: ArgResult<A[K]> }, ...ArgResult<RA>[]]
+  ? WithArgRestResult<[...{ [K in keyof A]: ArgResult<A[K]> }], RA>
   : never;
+
+type WithArgRestResult<A extends any[], RA> = RA extends RepeatingArg<infer RA0>
+  ? [...A, ...ArgResult<RA0>[]]
+  : RA extends OptionalArg<infer RA0>
+  ? [...A, ArgResult<RA0> | void]
+  : A;
 
 type ArgResult<A> = A extends Arg<infer T> ? T : never;
 
@@ -204,7 +227,7 @@ function parse1(
   tokens: ParsedTokens
 ): CmdResult<AnyCmd> {
   let args: Arg<any>[] = cmd.args == null ? [] : [...cmd.args];
-  let argsRest: Arg<any> | null = cmd.argsRest != null ? cmd.argsRest : null;
+  let argsRest: AnyArgRest | null = cmd.argsRest != null ? cmd.argsRest : null;
   let opts: { [name: string]: { key: string; opt: AnyOpt } } = {};
   for (let key in cmd.opts) {
     let opt = cmd.opts[key];
@@ -223,6 +246,11 @@ function parse1(
     } else {
       optsValues[key] = value;
     }
+  }
+
+  function addArgValue(arg: AnyArg, value: any) {
+    if (arg.action === "string") argsValues.push(value);
+    else argsValues.push(arg.action(value));
   }
 
   while (tokens.length > 0) {
@@ -246,7 +274,7 @@ function parse1(
           if (tokens[0]?.kind !== "positional")
             throw new CommandLineError(
               cmds,
-              `missing value for option --${tok.name}`
+              `missing value for option --${opt.name}`
             );
           let value = (tokens.shift() as { value: string }).value;
           if (opt.action === "string") addOptValue(maybeOpt, key, value);
@@ -257,11 +285,24 @@ function parse1(
       case "positional":
         if (args.length > 0) {
           tokens.shift();
-          args.shift();
-          argsValues.push(tok.value);
+          addArgValue(args.shift()!, tok.value);
         } else if (argsRest != null) {
-          tokens.shift();
-          argsValues.push(tok.value);
+          switch (argsRest.type) {
+            case "RepeatingArg":
+              tokens.shift();
+              addArgValue(argsRest.arg, tok.value);
+              break;
+            case "OptionalArg":
+              if (args.length === 0) {
+                tokens.shift();
+                addArgValue(argsRest.arg, tok.value);
+              } else {
+                throw new CommandLineError(cmds, "extra position argument");
+              }
+              break;
+            default:
+              Lang.never(argsRest);
+          }
         } else {
           if (cmd.cmds == null)
             throw new CommandLineError(cmds, "extra position argument");
@@ -382,8 +423,17 @@ function ppUsage(cmd: AnyCmd, name?: string): pp.IDoc {
     usage = `${usage} ${args}`;
   }
   if (cmd.argsRest != null) {
-    let argsRest = `${cmd.argsRest.docv ?? "ARG"}...`;
-    usage = `${usage} ${argsRest}`;
+    let argRest = cmd.argsRest;
+    switch (argRest.type) {
+      case "RepeatingArg":
+        usage = `${usage} ${argRest.arg.docv ?? "ARG"}...`;
+        break;
+      case "OptionalArg":
+        usage = `${usage} [${argRest.arg.docv ?? "ARG"}]`;
+        break;
+      default:
+        Lang.never(argRest);
+    }
   }
   return usage;
 }
