@@ -12,24 +12,31 @@ export type OptSpec = {
   readonly doc?: string;
   readonly docv?: string;
   readonly env?: string;
+  readonly default?: string | void;
 };
 
 export type Opt<T> = OptSpec & {
   readonly type: "Opt";
-  readonly action: "string" | "boolean" | ((value: string) => T);
+  readonly action: "string" | "boolean" | ((value: string | undefined) => T);
 };
 
+type OptDefault<O extends OptSpec> = O["default"] extends string
+  ? string
+  : undefined;
+
 /** Define an option. */
-export function option(spec: OptSpec): Opt<string> {
+export function option<S extends OptSpec>(
+  spec: S
+): Opt<string | OptDefault<S>> {
   return { ...spec, type: "Opt", action: "string" };
 }
 
 /** Define an option which computes to a value using `action`. */
-export function optionAnd<T>(
-  spec: OptSpec,
-  action: (value: string) => T
+export function optionAnd<S extends OptSpec, T>(
+  spec: S,
+  action: (value: string | OptDefault<S>) => T
 ): Opt<T> {
-  return { ...spec, type: "Opt", action };
+  return { ...spec, type: "Opt", action: action as Opt<T>["action"] };
 }
 
 /** Define a flag (boolean option). */
@@ -348,6 +355,8 @@ function parse1(
       if (opt.env != null) {
         let envval = process.env[opt.env];
         if (envval != null) addOptValue(opt, key, envval);
+      } else if (opt.default != null) {
+        addOptValue(opt, key, opt.default);
       }
   }
 
@@ -445,9 +454,15 @@ function ppOptName(opt: Opt<any>) {
 }
 
 function ppOptDoc(opt: Opt<any>): pp.IDoc {
-  if (opt.env == null) return opt.doc ?? "";
-  let doc = opt.doc ?? "";
-  return [ppText(doc), pp.line, ppText(``)];
+  let doc: pp.IDocArray = [ppText(opt.doc ?? "")];
+  if (opt.env != null)
+    doc.push(pp.line, ppText(`(environment variable: \$${opt.env})`));
+  if (opt.default != null)
+    doc.push(
+      pp.line,
+      ppText(`(default value: ${JSON.stringify(opt.default)})`)
+    );
+  return doc;
 }
 
 function ppHelp(cmd: AnyCmd, name?: string): pp.IDoc {
@@ -467,16 +482,8 @@ function ppHelp(cmd: AnyCmd, name?: string): pp.IDoc {
     let rows: [string, pp.IDoc][] = [];
     for (let key in cmd.opts) {
       let opt: AnyOpt = cmd.opts[key];
-      let name: string;
-      let doc: pp.IDoc;
-      if (opt.type === "OptionRepeating") {
-        name = ppOptName(opt.opt);
-        doc = ppOptDoc(opt.opt);
-      } else {
-        if (opt.action === "boolean") name = ppOptName(opt);
-        else name = `${ppOptName(opt)} ${opt.docv ?? "VALUE"}`;
-        doc = opt.doc ?? "";
-      }
+      let name = ppOptName(opt.type === "OptionRepeating" ? opt.opt : opt);
+      let doc = ppOptDoc(opt.type === "OptionRepeating" ? opt.opt : opt);
       rows.push([name, doc]);
     }
     doc.push(pp.nest("  ", ppTable(rows)));
