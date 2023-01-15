@@ -70,7 +70,10 @@ export function arg(spec: ArgSpec): Arg<string> {
 }
 
 /** Define an argument which computes to a value using `action`. */
-export function argAnd<T>(spec: ArgSpec, action: (value: string) => T): Arg<T> {
+export function argAnd<T>(
+  spec: ArgSpec,
+  action: (value: string) => T
+): Arg<T> {
   return { ...spec, type: "Arg", action };
 }
 
@@ -158,7 +161,9 @@ type CmdArgsResult<C> = C extends Cmd<[], null, infer _O, infer _C>
   ? WithArgRestResult<[...{ [K in keyof A]: ArgResult<A[K]> }], RA>
   : never;
 
-type WithArgRestResult<A extends any[], RA> = RA extends RepeatingArg<infer RA0>
+type WithArgRestResult<A extends any[], RA> = RA extends RepeatingArg<
+  infer RA0
+>
   ? [...A, ...RA0[]]
   : RA extends OptionalArg<infer RA0>
   ? [...A, RA0]
@@ -320,7 +325,10 @@ function parse1(
             throw new CommandLineError(cmds, "extra position argument");
           let nextCmd: AnyCmd | null = cmd.cmds[tok.value];
           if (nextCmd == null)
-            throw new CommandLineError(cmds, `unknown subcommand ${tok.value}`);
+            throw new CommandLineError(
+              cmds,
+              `unknown subcommand ${tok.value}`
+            );
           tokens.shift();
           next = {
             name: tok.value,
@@ -353,7 +361,7 @@ function parse1(
           let envval = process.env[opt.opt.env];
           if (envval != null) addOptValue(opt, key, envval);
         } else optsValues[key] = [];
-      } else if (opt.type === "Opt" && opt.action === "boolean")
+      } else if (opt.type === "Opt" && opt.action === "boolean") {
         if (opt.env != null) {
           let envval = (process.env[opt.env] ?? "false").toLowerCase();
           optsValues[key] =
@@ -362,13 +370,16 @@ function parse1(
             envval !== "0" &&
             envval !== "false";
         } else optsValues[key] = false;
-    } else if (opt.type === "Opt")
-      if (opt.env != null) {
-        let envval = process.env[opt.env];
-        if (envval != null) addOptValue(opt, key, envval);
-      } else if (opt.default != null) {
-        addOptValue(opt, key, opt.default);
+      } else if (opt.type === "Opt") {
+        if (opt.env != null) {
+          let envval = process.env[opt.env];
+          if (envval != null) addOptValue(opt, key, envval);
+        }
+        if (optsValues[key] == null && opt.default != null) {
+          addOptValue(opt, key, opt.default);
+        }
       }
+    }
   }
 
   return {
@@ -459,11 +470,11 @@ function ppUsage(cmd: AnyCmd, name?: string): pp.IDoc {
 }
 
 function ppOptName(opt: Opt<any>) {
-  let name = opt.shortName != null
-    ? `--${opt.name}, -${opt.shortName}`
-    : `--${opt.name}`;
-  if (opt.action !== 'boolean')
-    name = `${name} ${opt.docv ?? 'VALUE'}`
+  let name =
+    opt.shortName != null
+      ? `--${opt.name}, -${opt.shortName}`
+      : `--${opt.name}`;
+  if (opt.action !== "boolean") name = `${name} ${opt.docv ?? "VALUE"}`;
   return name;
 }
 
