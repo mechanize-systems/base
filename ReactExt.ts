@@ -121,7 +121,7 @@ export function usePersistentState<V>(
     let s: string | null = localStorage.getItem(id);
     if (s == null) return init();
     let v = codec.decode(s);
-    return v === NO_VALUE ? init() : v
+    return v === NO_VALUE ? init() : v;
   });
 
   React.useEffect(() => {
